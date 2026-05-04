@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Panah Bola - Auto Save</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { margin: 0; background: #0f172a; overflow: hidden; touch-action: none; font-family: sans-serif; }
+        #gameCanvas { background: radial-gradient(circle, #1e293b, #0f172a); display: block; }
+        .ui-layer { position: absolute; top: 20px; left: 20px; color: white; pointer-events: none; }
+        .btn-reset { position: absolute; bottom: 20px; right: 20px; background: rgba(255,255,255,0.1); color: white; padding: 10px; border-radius: 8px; font-size: 10px; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <div class="ui-layer">
+        <h1 class="text-2xl font-black italic tracking-tighter">PANAH BOLA</h1>
+        <p class="text-xs font-bold text-slate-400">SKOR: <span id="currentScore" class="text-white text-lg">0</span></p>
+        <p class="text-xs font-bold text-yellow-500">TERBAIK: <span id="bestScore" class="text-white text-lg">0</span></p>
+        <div class="mt-2 bg-indigo-600 px-2 py-1 rounded text-[10px] font-bold animate-bounce">
+            SS SKOR TERBAIK KE HUDA!
+        </div>
+    </div>
+
+    <div class="btn-reset" onclick="resetData()">Hapus Data</div>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreEl = document.getElementById('currentScore');
+        const bestEl = document.getElementById('bestScore');
+
+        let width, height, score = 0, highscore = 0;
+        
+        // --- LOGIKA AUTO SAVE ---
+        function loadData() {
+            const saved = localStorage.getItem('huda_game_score');
+            if (saved) {
+                highscore = parseInt(saved);
+                bestEl.innerText = highscore;
+            }
+        }
+
+        function saveData() {
+            if (score > highscore) {
+                highscore = score;
+                localStorage.setItem('huda_game_score', highscore);
+                bestEl.innerText = highscore;
+            }
+        }
+
+        function resetData() {
+            if(confirm("Hapus skor terbaik?")) {
+                localStorage.removeItem('huda_game_score');
+                location.reload();
+            }
+        }
+
+        // --- LOGIKA GAME ---
+        function resize() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+        }
+
+        window.addEventListener('resize', resize);
+        resize();
+
+        let player = { x: 50, y: height / 2, r: 20 };
+        let arrow = { x: 50, y: height / 2, active: false, speed: 15 };
+        let target = { x: width - 100, y: Math.random() * height, r: 30, speed: 3 };
+
+        function draw() {
+            ctx.clearRect(0, 0, width, height);
+
+            // Gambar Target (Bola)
+            ctx.beginPath();
+            ctx.arc(target.x, target.y, target.r, 0, Math.PI * 2);
+            ctx.fillStyle = '#ef4444';
+            ctx.fill();
+            ctx.strokeStyle = 'white';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+
+            // Gerak Target
+            target.y += target.speed;
+            if (target.y > height || target.y < 0) target.speed *= -1;
+
+            // Gambar Player
+            ctx.fillStyle = '#6366f1';
+            ctx.fillRect(player.x - 10, player.y - 30, 20, 60);
+
+            // Gambar Panah
+            if (arrow.active) {
+                ctx.fillStyle = '#fbbf24';
+                ctx.fillRect(arrow.x, arrow.y - 2, 30, 4);
+                arrow.x += arrow.speed;
+
+                // Cek Tabrakan
+                let dx = arrow.x - target.x;
+                let dy = arrow.y - target.y;
+                let distance = Math.sqrt(dx * dx + dy * dy);
+
+                if (distance < target.r) {
+                    score += 10;
+                    scoreEl.innerText = score;
+                    saveData(); // AUTO SAVE DISINI
+                    resetArrow();
+                    target.y = Math.random() * height;
+                    target.speed += (target.speed > 0 ? 0.5 : -0.5); // Makin susah
+                }
+
+                if (arrow.x > width) resetArrow();
+            }
+
+            requestAnimationFrame(draw);
+        }
+
+        function resetArrow() {
+            arrow.active = false;
+            arrow.x = 50;
+        }
+
+        // Kontrol
+        window.addEventListener('touchstart', (e) => {
+            if (!arrow.active) {
+                arrow.y = e.touches[0].clientY;
+                player.y = e.touches[0].clientY;
+                arrow.active = true;
+            }
+        });
+
+        window.addEventListener('mousedown', (e) => {
+            if (!arrow.active) {
+                arrow.y = e.clientY;
+                player.y = e.clientY;
+                arrow.active = true;
+            }
+        });
+
+        // Start
+        loadData();
+        draw();
+    </script>
+</body>
+</html>
